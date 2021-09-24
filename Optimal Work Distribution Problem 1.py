@@ -105,7 +105,8 @@ breaks = [m1_breaks, m2_breaks, m3_breaks, m4_breaks, m5_breaks, m6_breaks
 # In[17]:
 
 
-# Set up binary variabes to determine what machines need to be used
+# Set up binary variabes to determine what 
+# machines need to be used
 m1_used = LpVariable('m1_used', cat='Binary')
 m2_used = LpVariable('m2_used', cat='Binary')
 m3_used = LpVariable('m3_used', cat='Binary')
@@ -210,7 +211,8 @@ print("Read mi_used machine i is required to process work.")
 print("Read work_i_j as work piece i is to be proccessed by machine j.")
 print("Example: work_10_5 means work piece 10 is run on machine 5.\n")
 
-# Show the variables that are 1 (i.e. the machine work piece j is run on and the breaks included)
+# Show the variables that are 1 (i.e. the machine work piece j is run on 
+# and the breaks included)
 for v in op_work_prob.variables():
     if(v.value() >= 1):
         print(f"{v.name}: {v.value()}")

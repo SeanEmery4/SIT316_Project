@@ -9,7 +9,7 @@
 # <br><br>
 # Formulate this as a linear programming problem, solve it by applying different methods and analyse solutions obtained. Discuss and compare the performance of the methods applied.
 
-# In[12]:
+# In[1]:
 
 
 # import pulp and pandas
@@ -22,7 +22,7 @@ import pandas as pd
 # <br><br>
 # Then assign the data in the csv file to a 2D array to be referenced later and the break times each machine requires
 
-# In[13]:
+# In[2]:
 
 
 # read in csv file with data
@@ -51,14 +51,14 @@ for i in range(n_machines):
 # ## Setting Up LP Problem with PuLP
 # First define the problem as a minimisation problem. Then set up binary variables to determine what work piece is done on what machine, how many breaks are required for each machine and if the machine is used to process work.
 
-# In[14]:
+# In[3]:
 
 
 # Define the model as minimisation problem
 op_work_prob = LpProblem("Optimal_Work_Distribution", LpMinimize)
 
 
-# In[15]:
+# In[4]:
 
 
 # set up binary variables for work piece i being done on machine j
@@ -83,26 +83,25 @@ work = [work_1, work_2, work_3, work_4, work_5, work_6, work_7, work_8
      , work_9, work_10, work_11, work_12, work_13, work_14, work_15]
 
 
-# In[16]:
+# In[5]:
 
 
-# Set up variabes to determine how many breaks are needed
-m1_breaks = LpVariable('m1_breaks', cat='Integer', lowBound = 0, upBound = n_work-1)
-m2_breaks = LpVariable('m2_breaks', cat='Integer', lowBound = 0, upBound = n_work-1)
-m3_breaks = LpVariable('m3_breaks', cat='Integer', lowBound = 0, upBound = n_work-1)
-m4_breaks = LpVariable('m4_breaks', cat='Integer', lowBound = 0, upBound = n_work-1)
-m5_breaks = LpVariable('m5_breaks', cat='Integer', lowBound = 0, upBound = n_work-1)
-m6_breaks = LpVariable('m6_breaks', cat='Integer', lowBound = 0, upBound = n_work-1)
-m7_breaks = LpVariable('m7_breaks', cat='Integer', lowBound = 0, upBound = n_work-1)
-m8_breaks = LpVariable('m8_breaks', cat='Integer', lowBound = 0, upBound = n_work-1)
-m9_breaks = LpVariable('m9_breaks', cat='Integer', lowBound = 0, upBound = n_work-1)
+# Set up binary variabes to determine if a break needs to be added
+m1_break = LpVariable.dicts('m1_break', range(1, n_work + 1),cat='Binary')
+m2_break = LpVariable.dicts('m2_break', range(1, n_work + 1),cat='Binary')
+m3_break = LpVariable.dicts('m3_break', range(1, n_work + 1),cat='Binary')
+m4_break = LpVariable.dicts('m4_break', range(1, n_work + 1),cat='Binary')
+m5_break = LpVariable.dicts('m5_break', range(1, n_work + 1),cat='Binary')
+m6_break = LpVariable.dicts('m6_break', range(1, n_work + 1),cat='Binary')
+m7_break = LpVariable.dicts('m7_break', range(1, n_work + 1),cat='Binary')
+m8_break = LpVariable.dicts('m8_break', range(1, n_work + 1),cat='Binary')
+m9_break = LpVariable.dicts('m9_break', range(1, n_work + 1),cat='Binary')
 
 # put all breaks in an array
-breaks = [m1_breaks, m2_breaks, m3_breaks, m4_breaks, m5_breaks, m6_breaks
-          , m7_breaks, m8_breaks, m9_breaks]
+breaks = [m1_break, m2_break, m3_break, m4_break, m5_break, m6_break, m7_break, m8_break, m9_break]
 
 
-# In[17]:
+# In[6]:
 
 
 # Set up binary variabes to determine what machines need to be used
@@ -118,23 +117,24 @@ m9_used = LpVariable('m9_used', cat='Binary')
 
 
 # ### Objective function
-# Set up objective function with the sum of each work piece time taken to process by the machine it is assigned to, plus the break time required for each machine.
+# Set up objective function with the sum of each work piece time taken to process by the machine it is assigned to, plus the sum of the break time required for each machine.
 
-# In[18]:
+# In[7]:
 
 
 # set up objective function looping through all work pieces on all machines
 # and if the binary value is one multiply it by the time taken to do that work item on that machine
-# Then loop through each machines breaks required variable and multiply it by the break required on that machine
+# Then loop through each break variable and if the binary value is one 
+# multiply it by the break required on that machine
 op_work_prob += (lpSum([(work[i][j + 1] * (time_taken[j][i])) for i in range (n_work) for j in range(n_machines)]) +
-         ((breaks[i] * (m_break[i])) for i in range (n_machines))
+         lpSum([(breaks[i][j + 1] * (m_break[i])) for i in range (n_machines) for j in range(n_work)])
         ), "Objective Function"
 
 
 # ### Constraints
 # First set of constraints is ensuring each work item is only processed on one machine
 
-# In[19]:
+# In[8]:
 
 
 # declare constraints that each work piece is completed once
@@ -157,7 +157,7 @@ op_work_prob += lpSum([work_15[i] for i in range(1, n_machines + 1)]) == 1, "wor
 
 # Second set of constraints determine if each machine is used, this is used to determine how many breaks are required for each machine in the next set of constraints. 
 
-# In[20]:
+# In[9]:
 
 
 # delcare constraints to set mi_used binary to 1 if work is processed on machine i, 0 otherwise
@@ -174,28 +174,28 @@ op_work_prob += lpSum([work[i][9] for i in range(n_work)]) >= m9_used, "if machi
 
 # The third set of constraints determine how many breaks each machine requires. If a machine is required to process 4 work items, it requires 3 breaks, one in between each work item but not at the end. This is as simple as saying the number of breaks required is one less than the number of work pieces processed on that machine. 
 # <br><br>
-# However, this forces work on every machine as if a machine is required to process no work, the breaks equates to minus 1, which is not possible as the breaks lower bound is 0. This is where the binary variable for if the machine is used is required. If the machine is used (i.e. binary value is 1) one is added to the number of breaks, equalling the number of jobs ran. If the machine is not used (value is 0), the zero is to the number of breaks. In this way, the number of breaks can equal zero then there is no work processed on the machine.
+# However, this forces work on every machine as if a machine is required to process no work, the breaks equates to minus 1, which is not possible as the breaks are binary (0 or 1). This is where the binary variable for if the machine is used is required. If the machine is used (i.e. binary value is 1) it is multiplied by 1 and added to the number of breaks, equalling the number of jobs ran. If the machine is not used (value is 0), the zero is multiplied by 1, adding zero to the number of breaks. In this way, the number of breaks can equal zero then there is no work processed on the machine.
 
-# In[21]:
+# In[10]:
 
 
 # declare constraints that the number of breaks on each machine is one less 
 # than the number of work items carried out on that machine if that machine is used
-op_work_prob += breaks[0] + (m1_used) == lpSum([work[i][1] for i in range(n_work)]), "machine 1 breaks required"
-op_work_prob += breaks[1] + (m2_used) == lpSum([work[i][2] for i in range(n_work)]), "machine 2 breaks required"
-op_work_prob += breaks[2] + (m3_used) == lpSum([work[i][3] for i in range(n_work)]), "machine 3 breaks required"
-op_work_prob += breaks[3] + (m4_used) == lpSum([work[i][4] for i in range(n_work)]), "machine 4 breaks required"
-op_work_prob += breaks[4] + (m5_used) == lpSum([work[i][5] for i in range(n_work)]), "machine 5 breaks required"
-op_work_prob += breaks[5] + (m6_used) == lpSum([work[i][6] for i in range(n_work)]), "machine 6 breaks required"
-op_work_prob += breaks[6] + (m7_used) == lpSum([work[i][7] for i in range(n_work)]), "machine 7 breaks required"
-op_work_prob += breaks[7] + (m8_used) == lpSum([work[i][8] for i in range(n_work)]), "machine 8 breaks required"
-op_work_prob += breaks[8] + (m9_used) == lpSum([work[i][9] for i in range(n_work)]), "machine 9 breaks required"
+op_work_prob += lpSum([breaks[0][i] for i in range(1, n_work + 1)]) + (m1_used) == lpSum([work[i][1] for i in range(n_work)]), "machine 1 breaks required"
+op_work_prob += lpSum([breaks[1][i] for i in range(1, n_work + 1)]) + (m2_used) == lpSum([work[i][2] for i in range(n_work)]), "machine 2 breaks required"
+op_work_prob += lpSum([breaks[2][i] for i in range(1, n_work + 1)]) + (m3_used) == lpSum([work[i][3] for i in range(n_work)]), "machine 3 breaks required"
+op_work_prob += lpSum([breaks[3][i] for i in range(1, n_work + 1)]) + (m4_used) == lpSum([work[i][4] for i in range(n_work)]), "machine 4 breaks required"
+op_work_prob += lpSum([breaks[4][i] for i in range(1, n_work + 1)]) + (m5_used) == lpSum([work[i][5] for i in range(n_work)]), "machine 5 breaks required"
+op_work_prob += lpSum([breaks[5][i] for i in range(1, n_work + 1)]) + (m6_used) == lpSum([work[i][6] for i in range(n_work)]), "machine 6 breaks required"
+op_work_prob += lpSum([breaks[6][i] for i in range(1, n_work + 1)]) + (m7_used) == lpSum([work[i][7] for i in range(n_work)]), "machine 7 breaks required"
+op_work_prob += lpSum([breaks[7][i] for i in range(1, n_work + 1)]) + (m8_used) == lpSum([work[i][8] for i in range(n_work)]), "machine 8 breaks required"
+op_work_prob += lpSum([breaks[8][i] for i in range(1, n_work + 1)]) + (m9_used) == lpSum([work[i][9] for i in range(n_work)]), "machine 9 breaks required"
 
 
 # ## Solve the LP Problem
 # The problem is then solved, with each binary value equalling 1 being displayed. From this we can determine which work piece is run on each machine.
 
-# In[22]:
+# In[11]:
 
 
 # solve problem and store status
@@ -205,14 +205,14 @@ status = op_work_prob.solve()
 print(f"Solution: {LpStatus[status]}\n")
 
 # print instructions of how to read the results
-print("Read mi_breaks as the number of breaks required for machine i.")
+print("Read mi_break_x as 1 break for machine i. mi_break_x appearing twice means machine i requires two breaks.")
 print("Read mi_used machine i is required to process work.")
 print("Read work_i_j as work piece i is to be proccessed by machine j.")
 print("Example: work_10_5 means work piece 10 is run on machine 5.\n")
 
 # Show the variables that are 1 (i.e. the machine work piece j is run on and the breaks included)
 for v in op_work_prob.variables():
-    if(v.value() >= 1):
+    if(v.value() == 1):
         print(f"{v.name}: {v.value()}")
 
 # print the mimimum time taken
